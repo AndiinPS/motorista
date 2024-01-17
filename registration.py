@@ -78,12 +78,20 @@ class RegistrationScreen(GridLayout):
         self.add_widget(self.register_button)
 
     def register_user(self, instance):
+        # Supondo que você colete os dados do formulário aqui
         name = self.name_input.text
         email = self.email_input.text
         birthdate = self.birthdate_input.text
         password = self.password_input.text
+
+        # Adiciona o usuário ao banco de dados
         add_user(name, email, birthdate, password)
+
+        # Envia o e-mail de confirmação
         send_confirmation_email(email, name)
+
+        # Possivelmente limpar os campos do formulário aqui
+        # e/ou redirecionar o usuário para outra tela
 
 class MyApp(App):
 

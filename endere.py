@@ -19,17 +19,17 @@ class TaxiApp(GridLayout):
         self.add_widget(self.current_location_checkbox)
         self.current_location_checkbox.bind(active=self.on_checkbox_active)  # Evento adicionado
 
-        # km até o embarque
-        self.add_widget(Label(text='KM até o Embarque'))
+        # endereço de embarque
+        self.add_widget(Label(text='Endereço de Embarque'))
         self.start_address = TextInput(multiline=False)
         self.start_address.disabled = True  # Desabilitado por padrão
         self.add_widget(self.start_address)
 
 
-        # KM até o distino 
-        self.add_widget(Label(text='KM até o destino'))
-        self.distance = TextInput(multiline=False, input_type='number')
-        self.add_widget(self.distance)
+        # Endereço de destino
+        self.add_widget(Label(text='Endereço de Destino'))
+        self.destination_address = TextInput(multiline=False)
+        self.add_widget(self.destination_address)
 
 
          # Checkbox e Input para Pedágio
@@ -66,18 +66,20 @@ class TaxiApp(GridLayout):
         self.toll_value.disabled = not value
 
     def calculate_fare(self, instance):
-        try:
-            distance_to_start = 0 if self.current_location_checkbox.active else float(self.start_address.text)
-            distance_to_destination = float(self.distance.text)
-            total_distance = distance_to_start + distance_to_destination
-            value_per_km = float(self.value_per_km.text)
-            fare = total_distance * value_per_km
-            # Adiciona o valor do pedágio se estiver marcado
-            if self.toll_checkbox.active:
-                fare += float(self.toll_value.text)
-            self.result.text = f'Valor da corrida: R${fare:.2f}'
-        except ValueError:
-            self.result.text = 'Por favor, insira valores válidos.'
+        # Aqui você pega os endereços do usuário
+        start_address = self.start_address.text
+        destination_address = self.destination_address.text
+        chave_api = "SuaChaveDaAPI"
+
+        # Chama a função para calcular a distância e duração
+        resultado = calcular_distancia_duracao(start_address, destination_address, chave_api)
+
+        if resultado:
+            distancia, duracao = resultado
+            # Aqui você pode adicionar a lógica para calcular o custo
+            self.result.text = f"Distância: {distancia}, Duração: {duracao}"
+        else:
+            self.result.text = "Não foi possível obter a distância."
 class MyApp(App):
 
     def build(self):

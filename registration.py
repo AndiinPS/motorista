@@ -1,4 +1,6 @@
+import bcrypt
 import sqlite3
+import os
 from kivy.app import App
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
@@ -6,6 +8,8 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 import smtplib
 from email.mime.text import MIMEText
+from kivy.uix.boxlayout import BoxLayout
+from dotenv import load_dotenv
 
 # Função para criar o banco de dados e a tabela de usuários
 def create_database():
@@ -22,14 +26,19 @@ create_database()
 def add_user(name, email, birthdate, password):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
-    c.execute("INSERT INTO users VALUES (?,?,?,?)", (name, email, birthdate, password))
+
+    # Criando o hash da senha
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
+    c.execute("INSERT INTO users VALUES (?,?,?,?)", (name, email, birthdate, hashed_password))
     conn.commit()
     conn.close()
 
 # Função para enviar e-mail de confirmação
 def send_confirmation_email(email, name):
-    sender_email = "seuemail@gmail.com"  # Substitua pelo seu e-mail
-    sender_password = "sua_senha"  # Substitua pela sua senha
+    load_dotenv()
+    sender_email = os.getenv("SENDER_EMAIL")
+    sender_password = os.getenv("SENDER_PASSWORD")
 
     msg = MIMEText(f"Olá {name}, seu cadastro foi concluído com sucesso!")
     msg['Subject'] = "Confirmação de Cadastro"
@@ -68,14 +77,28 @@ class RegistrationScreen(GridLayout):
         self.add_widget(self.birthdate_input)
 
         # Senha
+        password_box = BoxLayout(orientation='horizontal')
         self.add_widget(Label(text='Senha'))
         self.password_input = TextInput(password=True, multiline=False)
-        self.add_widget(self.password_input)
+        password_box.add_widget(self.password_input)
+
+        self.toggle_button = Button(text='Ver')
+        self.toggle_button.bind(on_press=self.toggle_password_visibility)
+        password_box.add_widget(self.toggle_button)
+        self.add_widget(password_box)
 
         # Botão para registrar
         self.register_button = Button(text='Registrar')
         self.register_button.bind(on_press=self.register_user)
         self.add_widget(self.register_button)
+
+    def toggle_password_visibility(self, instance):
+        if self.password_input.password:
+            self.password_input.password = False
+            self.toggle_button.text = 'Ocultar'
+        else:
+            self.password_input.password = True
+            self.toggle_button.text = 'Ver'
 
     def register_user(self, instance):
         # Supondo que você colete os dados do formulário aqui
@@ -92,6 +115,10 @@ class RegistrationScreen(GridLayout):
 
         # Possivelmente limpar os campos do formulário aqui
         # e/ou redirecionar o usuário para outra tela
+
+    def verify_password(user_password, stored_password):
+        return bcrypt.checkpw(user_password.encode('utf-8'), stored_password)
+
 
 class MyApp(App):
 

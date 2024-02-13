@@ -10,6 +10,7 @@ import smtplib
 from email.mime.text import MIMEText
 from kivy.uix.boxlayout import BoxLayout
 from dotenv import load_dotenv
+from kivy.uix.screenmanager import ScreenManager, Screen
 
 # Função para criar o banco de dados e a tabela de usuários
 def create_database():

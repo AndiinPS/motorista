@@ -161,7 +161,7 @@ class TaxiApp(GridLayout):
             self.result.text = "Não foi possível obter a distância."
 
     def calcular_tarifa(self, distancia, pedagio, valor_por_km):
-        distancia_km = float(distancia.split()[0])
+        distancia_km = float(distancia.replace(',', '.').split()[0])
         tarifa = distancia_km * valor_por_km + pedagio
         return tarifa
 

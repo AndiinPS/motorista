@@ -61,6 +61,8 @@ def obter_endereco(latitude, longitude, chave_api):
     except Exception as e:
         print(f"Erro ao obter o endereço: {e}")
         return None
+    
+
 
 class TaxiApp(GridLayout):
     def __init__(self, **kwargs):
@@ -74,7 +76,8 @@ class TaxiApp(GridLayout):
         self.add_widget(self.current_location_checkbox)
 
         self.add_widget(Label(text='Endereço de Origem:'))
-        self.start_address = TextInput(multiline=False)
+        self.start_address = TextInput(multiline=True)
+        self.start_address.disabled = False
         self.add_widget(self.start_address)
 
         self.add_widget(Label(text='Endereço de Destino:'))

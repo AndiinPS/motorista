@@ -1,4 +1,7 @@
 import requests
+import smtplib
+import plyer
+import webbrowser
 from kivy.app import App
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
@@ -18,7 +21,10 @@ from email.message import EmailMessage
 import google.auth
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-
+from email.mime.multipart import MIMEMultipart
+import webbrowser
+import platform
+import urllib.parse
 
 def create_database():
     conn = sqlite3.connect('users.db')
@@ -29,11 +35,15 @@ def create_database():
     conn.close()
 
 def add_user(name, email, birthdate, password):
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    c.execute("INSERT INTO users VALUES (?,?,?,?)", (name, email, birthdate, password))
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect('users.db')
+        c = conn.cursor()
+        c.execute("INSERT INTO users VALUES (?,?,?,?)", (name, email, birthdate, password))
+        conn.commit()
+    except Exception as e:
+        print(f"Erro ao adicionar usuário: {e}")
+    finally:
+        conn.close()
 
 def verify_login(username, password):
     conn = sqlite3.connect('users.db')
@@ -93,33 +103,57 @@ def obter_endereco(latitude, longitude, chave_api):
         print(f"Erro ao obter o endereço: {e}")
         return None
     
-def send_confirmation_email(email, name):
-    creds, _ = google.auth.default()
+def open_url_in_maps(start_address, destination_address):
+    # Substitui espaços por '+' para URL encoding
+    start_address = start_address.replace(' ', '+')
+    destination_address = destination_address.replace(' ', '+')
+    
+    # Monta a URL
+    url = f"https://www.google.com/maps/dir/{start_address}/{destination_address}"
+    
+    # Abre a URL no navegador padrão
+    webbrowser.open(url)
+
+def enviar_email(email, name):
+    """
+    Envia um e-mail de confirmação de cadastro.
+    
+    :param email: O endereço de e-mail do destinatário.
+    :param name: O nome do destinatário.
+    """
+    # Configurações do servidor SMTP
+    smtp_server = 'smtp.gmail.com'
+    smtp_port = 587
+
+    # Informações de autenticação
+    email_usuario = 'andersonprogramador123@gmail.com'
+    senha = 'l s t l k y e g j v h d j g k c'
+
+    # Construir o e-mail
+    remetente = email_usuario
+    destinatario = email
+    assunto = 'Confirmação de Cadastro'
+    corpo_email = f"Olá {name}, seu cadastro foi concluído com sucesso!"
+
+    # Criar um objeto MIMEMultipart
+    msg = MIMEMultipart()
+    msg['From'] = remetente
+    msg['To'] = destinatario
+    msg['Subject'] = assunto
+
+    # Adicionar o corpo ao e-mail
+    msg.attach(MIMEText(corpo_email, 'plain'))
 
     try:
-        service = build("gmail", "v1", credentials=creds)
-        message = EmailMessage()
-
-        message.set_content(f"Olá {name}, seu cadastro foi concluído com sucesso!")
-
-        message["To"] = email
-        message["From"] = "andiinps@gmail.com"  # Substitua pelo seu e-mail
-        message["Subject"] = "Confirmação de Cadastro"
-
-        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
-
-        create_message = {"raw": encoded_message}
-        send_message = (
-            service.users()
-            .messages()
-            .send(userId="me", body=create_message)
-            .execute()
-        )
-        print(f'Message Id: {send_message["id"]}')
-    except HttpError as error:
-        print(f"Erro ao enviar e-mail: {error}")
-        send_message = None
-    return send_message   
+        # Criar uma conexão SMTP
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()  # Iniciar conexão TLS
+        server.login(email_usuario, senha)  # Fazer login no servidor SMTP
+        server.sendmail(remetente, destinatario, msg.as_string())  # Enviar e-mail
+        server.quit()  # Encerrar a conexão SMTP
+        print("E-mail de confirmação enviado com sucesso!")
+    except Exception as e:
+        print(f"Erro ao enviar e-mail de confirmação: {e}")
     
 class MainScreen(Screen):
     def __init__(self, **kwargs):
@@ -146,7 +180,15 @@ class MainScreen(Screen):
 
     def google_login(self, instance):
         # Lógica para login com conta do Google
-        print('Login com Google')
+        google_login_url = 'https://accounts.google.com/o/oauth2/auth'
+        params = {
+            'response_type': 'token',
+            'client_id': 'SEU_CLIENT_ID',
+            'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob',
+            'scope': 'email profile openid',
+        }
+        login_url = google_login_url + '?' + '&'.join([f'{k}={v}' for k, v in params.items()])
+        webbrowser.open(login_url)
 
     def register(self, instance):
         self.manager.current = 'register'
@@ -155,10 +197,10 @@ class LoginScreen(Screen):
     def __init__(self, **kwargs):
         super(LoginScreen, self).__init__(**kwargs)
         layout = BoxLayout(orientation='vertical')
-        layout.add_widget(Label(text='Tela de Login'))
+        layout.add_widget(Label(text='Login'))
 
         # Campos de usuário e senha
-        self.add_widget(Label(text='Nome de Usuário'))
+        self.add_widget(Label(text='Usuário'))
         self.username = TextInput(multiline=False)
         layout.add_widget(self.username)
 
@@ -188,18 +230,42 @@ class LoginScreen(Screen):
             # Se não estiver cadastrado, exibe uma mensagem
             self.username.text = ''  # Limpa os campos de entrada
             self.password.text = ''
+            # Adiciona uma mensagem de erro
+            error_label = Label(text='Usuário ou senha inválidos. Tente novamente.')
+            self.add_widget(error_label)
             self.manager.current = 'register'  # Redireciona para a tela de registro
             
-
     def on_register_pressed(self, instance):
-        app = App.get_running_app()
-        app.root.current = 'register'  # Ajustado para 'app.root.current' para acessar o ScreenManager
+        self.manager.current = 'register'  # Transição para a tela de registro
+
+    def login_with_google(self, instance):
+        # URL de login do Google
+        google_login_url = 'https://accounts.google.com/o/oauth2/auth'
         
+        # Parâmetros necessários para a solicitação de login
+        params = {
+            'response_type': 'token',
+            'client_id': 'SEU_CLIENT_ID',
+            'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob',
+            'scope': 'email profile openid',
+        }
+        
+        # Construindo a URL de login
+        login_url = google_login_url + '?' + '&'.join([f'{k}={v}' for k, v in params.items()])
+        
+        # Abrindo a URL no navegador padrão
+        webbrowser.open(login_url)
+
+    def open_taxi_app(self):
+        # Abrir a tela TaxiApp
+        self.root.clear_widgets()
+        self.root.add_widget(TaxiApp())
+          
 class RegistrationScreen(Screen):
     def __init__(self, **kwargs):
         super(RegistrationScreen, self).__init__(**kwargs)
         layout = BoxLayout(orientation='vertical')
-        layout.add_widget(Label(text='Tela de Registro'))
+        layout.add_widget(Label(text='Registrando'))
 
         # Nome do usuário
         self.add_widget(Label(text='Nome Completo'))
@@ -234,6 +300,7 @@ class RegistrationScreen(Screen):
 
         self.add_widget(layout)
 
+
     def toggle_password_visibility(self, instance):
         if self.password_input.password:
             self.password_input.password = False
@@ -252,7 +319,10 @@ class RegistrationScreen(Screen):
         add_user(name, email, birthdate, password)
 
         # Envia o e-mail de confirmação
-        send_confirmation_email(email, name)
+        enviar_email(email, name)
+
+        # Redireciona o usuário para a tela de login após o cadastro
+        self.manager.current = 'login'
 
     def clear_form_fields(self):
         # Limpa os campos do formulário
@@ -265,47 +335,49 @@ class RegistrationScreen(Screen):
         self.manager.current = 'main'
         # Redireciona o usuário para outra tela (opcional)
 
-class TaxiApp(GridLayout):
+class TaxiApp(Screen):
     def __init__(self, **kwargs):
         super(TaxiApp, self).__init__(**kwargs)
-        self.cols = 2
+        
+        layout = BoxLayout(orientation='vertical')
+        layout.add_widget(Label(text='Para onde vamos?'))
 
         # Adicionando checkbox para indicar se o usuário já está no local de embarque
-        self.add_widget(Label(text='Já está no local de embarque?'))
+        layout.add_widget(Label(text='Já está no endereço de Embarque?'))
         self.current_location_checkbox = CheckBox(active=False)
         self.current_location_checkbox.bind(active=self.on_checkbox_active)  
-        self.add_widget(self.current_location_checkbox)
+        layout.add_widget(self.current_location_checkbox)
 
-        self.add_widget(Label(text='Endereço de Origem:'))
+        layout.add_widget(Label(text='Endereço de Embarque:'))
         self.start_address = TextInput(multiline=True)
-        self.start_address.disabled = False
-        self.add_widget(self.start_address)
+        layout.add_widget(self.start_address)
 
-        self.add_widget(Label(text='Endereço de Destino:'))
+        layout.add_widget(Label(text='Endereço de Destino:'))
         self.destination_address = TextInput(multiline=False)
-        self.add_widget(self.destination_address)
+        layout.add_widget(self.destination_address)
 
-        self.add_widget(Label(text='Incluir Pedágio:'))
+        layout.add_widget(Label(text='Tem Pedágio?'))
         self.toll_checkbox = CheckBox()
         self.toll_checkbox.bind(active=self.on_toll_checkbox_active)  
-        self.add_widget(self.toll_checkbox)
+        layout.add_widget(self.toll_checkbox)
 
         self.toll_value_label = Label(text='Valor do Pedágio:')
-        self.add_widget(self.toll_value_label)
+        layout.add_widget(self.toll_value_label)
         self.toll_value = TextInput(multiline=False)
-        self.add_widget(self.toll_value)
+        layout.add_widget(self.toll_value)
 
-        self.add_widget(Label(text='Valor do KM:'))  # Adicionando rótulo para o campo de valor do km
+        layout.add_widget(Label(text='Valor do KM:'))  # Adicionando rótulo para o campo de valor do km
         self.km_value = TextInput(multiline=False)  # Adicionando campo de valor do km
-        self.add_widget(self.km_value)
-
+        layout.add_widget(self.km_value)
 
         self.calculate_button = Button(text='Calcular Tarifa')
         self.calculate_button.bind(on_press=self.calculate_fare)
-        self.add_widget(self.calculate_button)
+        layout.add_widget(self.calculate_button)
 
         self.result = Label(text='')
-        self.add_widget(self.result)
+        layout.add_widget(self.result)
+
+        self.add_widget(layout)
 
         self.toll_value_label.opacity = 0
         self.toll_value.opacity = 0
@@ -361,6 +433,7 @@ class TaxiApp(GridLayout):
             distancia, duracao = resultado
             tarifa = self.calcular_tarifa(distancia, pedagio, valor_por_km)  # Passa o valor do km como parâmetro
             self.result.text = f"Distância: {distancia}, Duração: {duracao}, Tarifa Estimada: {tarifa}"
+            open_url_in_maps(start_address, destination_address)
         else:
             self.result.text = "Não foi possível obter a distância."
 
@@ -376,12 +449,15 @@ class APSApp(App):
         main_screen = MainScreen(name='main')
         login_screen = LoginScreen(name='login')
         register_screen = RegistrationScreen(name='register')
+        taxi_app_screen = TaxiApp(name='taxi_app')
 
         screen_manager.add_widget(main_screen)
         screen_manager.add_widget(login_screen)
         screen_manager.add_widget(register_screen)
+        screen_manager.add_widget(taxi_app_screen)
 
         return screen_manager
+
 
 if __name__ == '__main__':
     APSApp().run()

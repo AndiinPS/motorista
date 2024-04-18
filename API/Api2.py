@@ -1,6 +1,6 @@
 import requests
 import smtplib
-import plyer
+from kivy.network.urlrequest import UrlRequest
 import webbrowser
 from kivy.app import App
 from kivy.uix.gridlayout import GridLayout
@@ -23,8 +23,9 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from email.mime.multipart import MIMEMultipart
 import webbrowser
-import platform
-import urllib.parse
+import json
+from kivy.uix.dropdown import DropDown
+
 
 def create_database():
     conn = sqlite3.connect('users.db')
@@ -335,6 +336,52 @@ class RegistrationScreen(Screen):
         self.manager.current = 'main'
         # Redireciona o usuário para outra tela (opcional)
 
+class AutoCompleteTextInput(TextInput):
+    def __init__(self, **kwargs):
+        super(AutoCompleteTextInput, self).__init__(**kwargs)
+        self.dropdown = None
+
+    def on_text(self, instance, value):
+        if len(value) > 3:  
+            url = f"https://maps.googleapis.com/maps/api/place/autocomplete/json?key=AIzaSyCaUCyLGkWvCRKdlG8ITwK4WMRMVxtA9GQ&input={value}&types=establishment&region=br"
+            UrlRequest(url, self.on_autocomplete_response)
+        else:
+            self.dismiss_dropdown()
+
+    def on_autocomplete_response(self, request, response):
+        if response['status'] == 'OK':
+            predictions = response['predictions']
+            addresses = [prediction['description'] for prediction in predictions]
+            if not self.dropdown:
+                self.create_dropdown(addresses)
+            else:
+                self.update_dropdown(addresses)
+
+    def create_dropdown(self, addresses):
+        self.dropdown = DropDown()
+        for address in addresses:
+            btn = Button(text=address, size_hint_y=None, height=44)
+            btn.bind(on_release=lambda btn: self.set_address(btn.text))
+            self.dropdown.add_widget(btn)
+        self.dropdown.open(self)
+
+    def update_dropdown(self, addresses):
+        self.dropdown.clear_widgets()
+        for address in addresses:
+            btn = Button(text=address, size_hint_y=None, height=44)
+            btn.bind(on_release=lambda btn: self.set_address(btn.text))
+            self.dropdown.add_widget(btn)
+
+    def set_address(self, address):
+        self.text = address
+        self.dismiss_dropdown()
+
+    def dismiss_dropdown(self):
+        if self.dropdown:
+            self.dropdown.dismiss()
+            self.dropdown = None
+
+
 class TaxiApp(Screen):
     def __init__(self, **kwargs):
         super(TaxiApp, self).__init__(**kwargs)
@@ -348,13 +395,13 @@ class TaxiApp(Screen):
         self.current_location_checkbox.bind(active=self.on_checkbox_active)  
         layout.add_widget(self.current_location_checkbox)
 
-        layout.add_widget(Label(text='Endereço de Embarque:'))
-        self.start_address = TextInput(multiline=True)
-        layout.add_widget(self.start_address)
+        # Adicionando campo de entrada com autocompletar para o endereço de embarque
+        self.start_address_input = AutoCompleteTextInput(hint_text='Endereço de Embarque')
+        layout.add_widget(self.start_address_input)
 
-        layout.add_widget(Label(text='Endereço de Destino:'))
-        self.destination_address = TextInput(multiline=False)
-        layout.add_widget(self.destination_address)
+        # Adicionando campo de entrada com autocompletar para o endereço de destino
+        self.destination_address_input = AutoCompleteTextInput(hint_text='Endereço de Destino')
+        layout.add_widget(self.destination_address_input)
 
         layout.add_widget(Label(text='Tem Pedágio?'))
         self.toll_checkbox = CheckBox()
@@ -387,28 +434,27 @@ class TaxiApp(Screen):
         self.toll_value.opacity = 1 if value else 0
 
     def on_checkbox_active(self, checkbox, value):
-        localizacao = None  # Inicializa localizacao com None
         if value:
-       # Se o checkbox estiver marcado, puxe a localização atual
+            # Se o checkbox estiver marcado, puxe a localização atual
             chave_api = "AIzaSyCaUCyLGkWvCRKdlG8ITwK4WMRMVxtA9GQ"  # Substitua pela sua chave API do Google
             localizacao = obter_localizacao_atual(chave_api)
             if localizacao:  # Verifica se localizacao é diferente de None dentro do bloco onde é definido
                 latitude, longitude = localizacao
-            # Obter o endereço correspondente às coordenadas de latitude e longitude
+                # Obter o endereço correspondente às coordenadas de latitude e longitude
                 endereco = obter_endereco(latitude, longitude, chave_api)
                 if endereco:
-                # Preencher o campo de Endereço de Origem com o endereço obtido
-                    self.start_address.text = endereco
+                    # Preencher o campo de Endereço de Origem com o endereço obtido
+                    self.start_address_input.text = endereco
                 else:
                     print("Não foi possível obter o endereço.")
         else:
-        # Se o checkbox não estiver marcado, permita que o usuário digite o endereço manualmente
-            self.start_address.text = ""  # Limpa o texto do endereço de origem
-            self.destination_address.text = ""  # Limpa o texto do endereço de destino
+            # Se o checkbox não estiver marcado, permita que o usuário digite o endereço manualmente
+            self.start_address_input.text = ""  # Limpa o texto do endereço de origem
+            self.destination_address_input.text = ""  # Limpa o texto do endereço de destino
 
     def calculate_fare(self, instance):
-        start_address = self.start_address.text
-        destination_address = self.destination_address.text
+        start_address = self.start_address_input.text
+        destination_address = self.destination_address_input.text
         chave_api = "AIzaSyCaUCyLGkWvCRKdlG8ITwK4WMRMVxtA9GQ"
 
         if self.toll_checkbox.active:

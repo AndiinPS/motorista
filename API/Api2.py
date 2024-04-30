@@ -180,19 +180,20 @@ class MainScreen(Screen):
         self.manager.current = 'login'
 
     def google_login(self, instance):
-        # Lógica para login com conta do Google
-        google_login_url = 'https://accounts.google.com/o/oauth2/auth'
-        params = {
-            'response_type': 'token',
-            'client_id': 'SEU_CLIENT_ID',
-            'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob',
-            'scope': 'email profile openid',
-        }
-        login_url = google_login_url + '?' + '&'.join([f'{k}={v}' for k, v in params.items()])
-        webbrowser.open(login_url)
+    # Lógica para login com conta do Google
+    google_login_url = 'https://accounts.google.com/o/oauth2/auth'
+    params = {
+        'response_type': 'token',
+        'client_id': 'SEU_CLIENT_ID',
+        'redirect_uri': 'https://www.example.com/auth/google/callback',  # Use uma URL válida aqui
+        'scope': 'email profile openid',
+    }
+    login_url = google_login_url + '?' + '&'.join([f'{k}={v}' for k, v in params.items()])
+    webbrowser.open(login_url)
 
-    def register(self, instance):
-        self.manager.current = 'register'
+def register(self, instance):
+    self.manager.current = 'register'
+
 
 class LoginScreen(Screen):
     def __init__(self, **kwargs):
@@ -202,11 +203,11 @@ class LoginScreen(Screen):
 
         # Campos de usuário e senha
         self.add_widget(Label(text='Usuário'))
-        self.username = TextInput(multiline=False)
+        self.username = TextInput(multiline=False, hint_text='Digite seu usuário')
         layout.add_widget(self.username)
 
         self.add_widget(Label(text='Senha'))
-        self.password = TextInput(password=True, multiline=False)
+        self.password = TextInput(password=True, multiline=False, hint_text='Digite sua senha')
         layout.add_widget(self.password)
 
         # Botões de login e registro
@@ -270,23 +271,23 @@ class RegistrationScreen(Screen):
 
         # Nome do usuário
         self.add_widget(Label(text='Nome Completo'))
-        self.name_input = TextInput(multiline=False)
+        self.name_input = TextInput(multiline=False, hint_text='Digite seu nome completo')
         layout.add_widget(self.name_input)
 
         # E-mail
         self.add_widget(Label(text='E-mail'))
-        self.email_input = TextInput(multiline=False)
+        self.email_input = TextInput(multiline=False, hint_text='Digite seu e-mail')
         layout.add_widget(self.email_input)
 
         # Data de nascimento
         self.add_widget(Label(text='Data de Nascimento'))
-        self.birthdate_input = TextInput(multiline=False)
+        self.birthdate_input = TextInput(multiline=False, hint_text='Digite sua data de nascimento')
         layout.add_widget(self.birthdate_input)
 
         # Senha
         password_box = BoxLayout(orientation='horizontal')
         self.add_widget(Label(text='Senha'))
-        self.password_input = TextInput(password=True, multiline=False)
+        self.password_input = TextInput(password=True, multiline=False, hint_text='Digite sua senha')
         password_box.add_widget(self.password_input)
 
         self.toggle_button = Button(text='Ver')

@@ -157,6 +157,9 @@ def enviar_email(email, name):
         print(f"Erro ao enviar e-mail de confirmação: {e}")
     
 class MainScreen(Screen):
+    
+    google_login_url = 'https://accounts.google.com/o/oauth2/auth'
+
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
         layout = BoxLayout(orientation='vertical')
@@ -171,7 +174,7 @@ class MainScreen(Screen):
         layout.add_widget(self.google_login_button)
 
         self.register_button = Button(text='Registrar')
-        self.register_button.bind(on_press=self.register)
+        self.register_button.bind(on_press=self.on_register)
         layout.add_widget(self.register_button)
 
         self.add_widget(layout)
@@ -180,19 +183,18 @@ class MainScreen(Screen):
         self.manager.current = 'login'
 
     def google_login(self, instance):
-    # Lógica para login com conta do Google
-    google_login_url = 'https://accounts.google.com/o/oauth2/auth'
-    params = {
-        'response_type': 'token',
-        'client_id': 'SEU_CLIENT_ID',
-        'redirect_uri': 'https://www.example.com/auth/google/callback',  # Use uma URL válida aqui
-        'scope': 'email profile openid',
-    }
-    login_url = google_login_url + '?' + '&'.join([f'{k}={v}' for k, v in params.items()])
-    webbrowser.open(login_url)
+        # Lógica para login com conta do Google
+        params = {
+            'response_type': 'token',
+            'client_id': 'SEU_CLIENT_ID',
+            'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob',
+            'scope': 'email profile openid',
+        }
+        login_url = self.google_login_url + '?' + '&'.join([f'{k}={v}' for k, v in params.items()])
+        webbrowser.open(login_url)
 
-def register(self, instance):
-    self.manager.current = 'register'
+    def on_register(self, instance):
+        self.manager.current = 'register'
 
 
 class LoginScreen(Screen):
@@ -397,31 +399,50 @@ class TaxiApp(Screen):
         layout.add_widget(self.current_location_checkbox)
 
         # Adicionando campo de entrada com autocompletar para o endereço de embarque
+        layout.add_widget(Label(text='Endereço de Embarque:'))
         self.start_address_input = AutoCompleteTextInput(hint_text='Endereço de Embarque')
         layout.add_widget(self.start_address_input)
 
         # Adicionando campo de entrada com autocompletar para o endereço de destino
+        address_layout = BoxLayout(orientation='horizontal')
+        layout.add_widget(Label(text='Endereço de Destino:'))
         self.destination_address_input = AutoCompleteTextInput(hint_text='Endereço de Destino')
-        layout.add_widget(self.destination_address_input)
+        address_layout.add_widget(self.destination_address_input)
 
+        # Botão para adicionar endereço de parada
+        self.add_address_button = Button(text='+', size_hint=(None, None), size=(50, 50))
+        self.add_address_button.bind(on_press=self.add_address_field)
+        address_layout.add_widget(self.add_address_button)
+        layout.add_widget(address_layout)
+
+        # Layout para os campos de endereço de parada
+        self.address_inputs_layout = BoxLayout(orientation='vertical')
+        self.address_inputs_layout.visible = False  # Inicialmente, o layout dos endereços de parada estará invisível
+        layout.add_widget(self.address_inputs_layout)
+
+        # Adicionando checkbox para indicar se há pedágio
         layout.add_widget(Label(text='Tem Pedágio?'))
         self.toll_checkbox = CheckBox()
         self.toll_checkbox.bind(active=self.on_toll_checkbox_active)  
         layout.add_widget(self.toll_checkbox)
 
+        # Campo de entrada para o valor do pedágio
         self.toll_value_label = Label(text='Valor do Pedágio:')
         layout.add_widget(self.toll_value_label)
         self.toll_value = TextInput(multiline=False)
         layout.add_widget(self.toll_value)
 
-        layout.add_widget(Label(text='Valor do KM:'))  # Adicionando rótulo para o campo de valor do km
-        self.km_value = TextInput(multiline=False)  # Adicionando campo de valor do km
+        # Campo de entrada para o valor do quilômetro
+        layout.add_widget(Label(text='Valor do KM:'))
+        self.km_value = TextInput(multiline=False)
         layout.add_widget(self.km_value)
 
+        # Botão para calcular a tarifa
         self.calculate_button = Button(text='Calcular Tarifa')
         self.calculate_button.bind(on_press=self.calculate_fare)
         layout.add_widget(self.calculate_button)
 
+        # Resultado do cálculo
         self.result = Label(text='')
         layout.add_widget(self.result)
 
@@ -429,6 +450,20 @@ class TaxiApp(Screen):
 
         self.toll_value_label.opacity = 0
         self.toll_value.opacity = 0
+
+    def add_address_field(self, instance):
+        # Mostra o layout dos endereços de parada quando o botão "+" é pressionado
+        self.address_inputs_layout.visible = True
+        # Adiciona um novo campo de entrada para o endereço de parada
+        if len(self.address_inputs_layout.children) < 5:
+            address_input = AutoCompleteTextInput(hint_text='Endereço de Parada')
+            self.address_inputs_layout.add_widget(address_input)
+        # Se já houver 5 endereços, desabilita o botão de adicionar
+        if len(self.address_inputs_layout.children) == 5:
+            instance.disabled = True
+
+
+
 
     def on_toll_checkbox_active(self, checkbox, value):
         self.toll_value_label.opacity = 1 if value else 0

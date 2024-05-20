@@ -25,6 +25,15 @@ from email.mime.multipart import MIMEMultipart
 import webbrowser
 import json
 from kivy.uix.dropdown import DropDown
+from kivy.uix.screenmanager import Screen
+from kivy.uix.anchorlayout import AnchorLayout
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+from kivy.uix.checkbox import CheckBox
+from kivy.uix.textinput import TextInput
+import re
 
 
 def create_database():
@@ -405,28 +414,29 @@ class TaxiApp(Screen):
         main_layout.add_widget(self.current_location_checkbox)
 
         # Adicionando campo de entrada com autocompletar para o endereço de embarque
-        main_layout.add_widget(Label(text='Endereço de Embarque:'))
+        main_layout.add_widget(Label(text='Embarque:'))
         self.start_address_input = AutoCompleteTextInput(hint_text='Endereço de Embarque', size_hint=(.5, .5), height=25, pos_hint={"center_x":.5, "center_y":.65})
         main_layout.add_widget(self.start_address_input)
 
-        # Adicionando campo de entrada com autocompletar para o endereço de destino
-        address_layout = BoxLayout(orientation='horizontal')
-        main_layout.add_widget(Label(text='Endereço de Destino:'))
-        self.destination_address_input = AutoCompleteTextInput(hint_text='Endereço de Destino', size_hint=(None,None), height=25, pos_hint={"center_x":.50, "center_y":.75})
-        address_layout.add_widget(self.destination_address_input)
-
-        # Botão para adicionar endereço de parada
-        self.add_address_button = Button(text='+', size_hint=(None, None), size=(20, 20))
-        self.add_address_button.bind(on_press=self.add_address_field)
-        address_layout.add_widget(self.add_address_button)
-        main_layout.add_widget(address_layout)
-
-        # Layout para os campos de endereço de parada
-        self.address_inputs_layout = GridLayout(cols=2, spacing=5, size_hint_y=None)
+        # Adicionando layout para os endereços de parada e destino
+        self.address_layout = BoxLayout(orientation='vertical', size_hint=(1, None))
+        self.address_inputs_layout = GridLayout(cols=1, spacing=5, size_hint_y=None)
         self.address_inputs_layout.bind(minimum_height=self.address_inputs_layout.setter('height'))
-        self.address_inputs_layout.visible = False  # Inicialmente, o layout dos endereços de parada estará invisível
-        main_layout.add_widget(self.address_inputs_layout)
+        self.address_inputs_layout.height = 0  # Inicialmente, o layout dos endereços de parada estará invisível
+        self.address_layout.add_widget(self.address_inputs_layout)
 
+        # Campo de entrada para o endereço de destino
+        self.destination_layout = BoxLayout(orientation='horizontal', size_hint=(1, None), height=40)
+        self.destination_label = Label(text='Endereço de Destino:', size_hint=(1, None), height=30)
+        self.destination_address_input = TextInput(hint_text='Endereço de Destino', size_hint=(1, None), height=40)
+        self.add_address_button = Button(text='+', size_hint=(None, None), size=(40, 40))
+        self.add_address_button.bind(on_press=self.add_address_field)
+        self.destination_layout.add_widget(self.destination_label)
+        self.destination_layout.add_widget(self.destination_address_input)
+        self.destination_layout.add_widget(self.add_address_button)
+        self.address_layout.add_widget(self.destination_layout)
+
+        main_layout.add_widget(self.address_layout)
         # Adicionando checkbox para indicar se há pedágio
         main_layout.add_widget(Label(text='Tem Pedágio?'))
         self.toll_checkbox = CheckBox()
@@ -436,18 +446,18 @@ class TaxiApp(Screen):
         # Campo de entrada para o valor do pedágio
         self.toll_value_label = Label(text='Valor do Pedágio:')
         main_layout.add_widget(self.toll_value_label)
-        self.toll_value = TextInput(hint_text='R$' , multiline=False, size_hint=(None,None), height=25, pos_hint={"center_x":.50, "center_y":.75})
+        self.toll_value = TextInput(hint_text='R$ 0,00' , multiline=False, size_hint=(None,None), height=30, pos_hint={"center_x":.50, "center_y":.75})
         self.toll_value.bind(on_text_validate=self.validate_currency_input)
         main_layout.add_widget(self.toll_value)
 
-        # Campo de entrada para o valor do quilômetro
-        main_layout.add_widget(Label(text='Valor do KM:'))
-        self.km_value = TextInput(hint_text='R$' , multiline=False, size_hint=(None,None), height=25, pos_hint={"center_x":.50, "center_y":.75})
-        self.km_value.bind(on_text_validate=self.validate_currency_input)
+       # Campo de entrada para o valor do quilômetro
+        main_layout.add_widget(Label(text='Valor do KM:', size_hint=(None,None), height=30, pos_hint={"center_x":.50, "center_y":.75}))
+        self.km_value = TextInput(hint_text='R$ 0,00', multiline=False,  size_hint=(None,None), height=30, pos_hint={"center_x":.50, "center_y":.75})
+        self.km_value.bind(on_text=self.format_currency)
         main_layout.add_widget(self.km_value)
 
         # Botão para calcular a tarifa
-        self.calculate_button = Button(text='Calcular Tarifa')
+        self.calculate_button = Button(text='Calcular Tarifa', size_hint=(.2,None), height=35, pos_hint={"center_x":.50, "center_y":.75})
         self.calculate_button.bind(on_press=self.calculate_fare)
         main_layout.add_widget(self.calculate_button)
 
@@ -461,23 +471,29 @@ class TaxiApp(Screen):
         self.toll_value_label.opacity = 0
         self.toll_value.opacity = 0
 
+    def format_currency(self, instance, value):
+        clean_value = re.sub(r'[^\d]', '', value)
+        if clean_value == "":
+            clean_value = "0"
+        clean_value = int(clean_value)
+        formatted_value = "R$ {:,.2f}".format(clean_value / 100).replace(',', 'v').replace('.', ',').replace('v', '.')
+        instance.text = formatted_value
+        instance.cursor = (len(formatted_value), 0)
+
     def validate_currency_input(self, instance):
         try:
-            # Remove o "R$" e quaisquer espaços em branco do texto
             value_text = instance.text.replace("R$", "").strip()
-            # Formata o texto como um valor de moeda
-            currency_value = float(value_text)
-            # Atualiza o texto na caixa de texto com a formatação correta
-            instance.text = f'R$ {currency_value:.2f}'
+            currency_value = float(value_text.replace(',', '.'))
+            instance.text = f'R$ {currency_value:.2f}'.replace('.', ',')
         except ValueError:
-            # Se ocorrer um erro ao converter para float, o texto inserido não é um valor válido
-            instance.text = "R$ 0.00"  # Define um valor padrão ou limpa o campo, conforme necessário
+            instance.text = "R$ 0,00"
 
     def add_address_field(self, instance):
+    
     # Mostra o layout dos endereços de parada quando o botão "+" é pressionado
         self.address_inputs_layout.visible = True
     # Adiciona um novo campo de entrada para o endereço de parada
-        if len(self.address_inputs_layout.children) < 10:  # Ajuste o limite conforme necessário
+        if len(self.address_inputs_layout.children) < 5:  # Ajuste o limite conforme necessário
             address_input = AutoCompleteTextInput(hint_text='Endereço de Parada', size_hint=(0.5, 0.5), height=25, pos_hint={"center_x":.5, "center_y":.65})
             self.address_inputs_layout.add_widget(address_input)
         
@@ -486,7 +502,7 @@ class TaxiApp(Screen):
         remove_address_button.bind(on_press=lambda x: self.remove_address_field(address_input, remove_address_button))
         self.address_inputs_layout.add_widget(remove_address_button)
     # Se já houver 10 endereços, desabilita o botão de adicionar
-        if len(self.address_inputs_layout.children) >= 10:
+        if len(self.address_inputs_layout.children) >= 5:
             instance.disabled = True
 
 

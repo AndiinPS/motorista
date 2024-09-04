@@ -137,7 +137,7 @@ def enviar_email(email, name):
 
     # Informações de autenticação
     email_usuario = 'andersonprogramador123@gmail.com'
-    senha = 'l s t l k y e g j v h d j g k c'
+    senha = ''
 
     # Construir o e-mail
     remetente = email_usuario
@@ -355,7 +355,7 @@ class AutoCompleteTextInput(TextInput):
 
     def on_text(self, instance, value):
         if len(value) > 3:  
-            url = f"https://maps.googleapis.com/maps/api/place/autocomplete/json?key=AIzaSyCaUCyLGkWvCRKdlG8ITwK4WMRMVxtA9GQ&input={value}&types=establishment&region=br"
+            url = f"https://maps.googleapis.com/maps/api/place/autocomplete/json?key=={value}&types=establishment&region=br"
             UrlRequest(url, self.on_autocomplete_response)
         else:
             self.dismiss_dropdown()
@@ -418,25 +418,11 @@ class TaxiApp(Screen):
         self.start_address_input = AutoCompleteTextInput(hint_text='Endereço de Embarque', size_hint=(.5, .5), height=25, pos_hint={"center_x":.5, "center_y":.65})
         main_layout.add_widget(self.start_address_input)
 
-        # Adicionando layout para os endereços de parada e destino
-        self.address_layout = BoxLayout(orientation='vertical', size_hint=(1, None))
-        self.address_inputs_layout = GridLayout(cols=1, spacing=5, size_hint_y=None)
-        self.address_inputs_layout.bind(minimum_height=self.address_inputs_layout.setter('height'))
-        self.address_inputs_layout.height = 0  # Inicialmente, o layout dos endereços de parada estará invisível
-        self.address_layout.add_widget(self.address_inputs_layout)
+        # Campo de entrada para o endereço de destino com autocomplete
+        main_layout.add_widget(Label(text='Endereço de Destino:'))
+        self.destination_address_input = AutoCompleteTextInput(hint_text='Endereço de Destino', size_hint=(.5, .5), height=25, pos_hint={"center_x":.5, "center_y":.65})
+        main_layout.add_widget(self.destination_address_input)
 
-        # Campo de entrada para o endereço de destino
-        self.destination_layout = BoxLayout(orientation='horizontal', size_hint=(1, None), height=40)
-        self.destination_label = Label(text='Endereço de Destino:', size_hint=(1, None), height=30)
-        self.destination_address_input = TextInput(hint_text='Endereço de Destino', size_hint=(1, None), height=40)
-        self.add_address_button = Button(text='+', size_hint=(None, None), size=(40, 40))
-        self.add_address_button.bind(on_press=self.add_address_field)
-        self.destination_layout.add_widget(self.destination_label)
-        self.destination_layout.add_widget(self.destination_address_input)
-        self.destination_layout.add_widget(self.add_address_button)
-        self.address_layout.add_widget(self.destination_layout)
-
-        main_layout.add_widget(self.address_layout)
         # Adicionando checkbox para indicar se há pedágio
         main_layout.add_widget(Label(text='Tem Pedágio?'))
         self.toll_checkbox = CheckBox()
@@ -468,8 +454,10 @@ class TaxiApp(Screen):
         layout.add_widget(main_layout)
         self.add_widget(layout)
 
+        # Inicialmente, ocultar os campos relacionados ao pedágio
         self.toll_value_label.opacity = 0
         self.toll_value.opacity = 0
+
 
     def format_currency(self, instance, value):
         clean_value = re.sub(r'[^\d]', '', value)
@@ -521,7 +509,7 @@ class TaxiApp(Screen):
     def on_checkbox_active(self, checkbox, value):
         if value:
             # Se o checkbox estiver marcado, puxe a localização atual
-            chave_api = "AIzaSyCaUCyLGkWvCRKdlG8ITwK4WMRMVxtA9GQ"  # Substitua pela sua chave API do Google
+            chave_api = ""  # Substitua pela sua chave API do Google
             localizacao = obter_localizacao_atual(chave_api)
             if localizacao:  # Verifica se localizacao é diferente de None dentro do bloco onde é definido
                 latitude, longitude = localizacao
@@ -540,7 +528,7 @@ class TaxiApp(Screen):
     def calculate_fare(self, instance):
         start_address = self.start_address_input.text
         destination_address = self.destination_address_input.text
-        chave_api = "AIzaSyCaUCyLGkWvCRKdlG8ITwK4WMRMVxtA9GQ"
+        chave_api = ""
 
         if self.toll_checkbox.active:
             if self.toll_value.text:

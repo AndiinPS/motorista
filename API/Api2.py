@@ -355,7 +355,7 @@ class AutoCompleteTextInput(TextInput):
 
     def on_text(self, instance, value):
         if len(value) > 3:  
-            url = f"https://maps.googleapis.com/maps/api/place/autocomplete/json?key=AIzaSyCaUCyLGkWvCRKdlG8ITwK4WMRMVxtA9GQ&input={value}&types=establishment&region=br"
+            url = f"https://maps.googleapis.com/maps/api/place/autocomplete/json?key=={value}&types=establishment&region=br"
             UrlRequest(url, self.on_autocomplete_response)
         else:
             self.dismiss_dropdown()
